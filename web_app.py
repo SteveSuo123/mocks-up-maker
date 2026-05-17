@@ -64,39 +64,50 @@ def run_mockup(
     return str(out_path), f"生成完成\n结果: {out_path}\nQuad调试图: {debug_path}"
 
 
-with gr.Blocks(title="Mug Mockup Web UI") as demo:
-    gr.Markdown("## Mug Mockup 交互调参\n上传马克杯图和印花图，实时调参数生成效果图。")
+css = """
+.compact .gr-form, .compact .gr-box, .compact .block, .compact .gr-group {padding: 6px !important; margin: 4px 0 !important;}
+.compact .gradio-slider {margin-top: 2px !important; margin-bottom: 2px !important;}
+.compact .gradio-dropdown, .compact .gradio-textbox {margin-top: 2px !important; margin-bottom: 2px !important;}
+"""
 
-    with gr.Row():
-        mug_img = gr.Image(label="马克杯底图（可选，不上传则用内置模板）", type="pil")
-        art_img = gr.Image(label="印花图（必填）", type="pil")
+with gr.Blocks(title="Mug Mockup Web UI", css=css) as demo:
+    gr.Markdown("## Mug Mockup 交互调参（紧凑布局）")
 
-    with gr.Row():
-        quad_mode = gr.Dropdown(choices=["relative", "pixels"], value="relative", label="quad 模式")
-        warp_mode = gr.Dropdown(choices=["cylindrical", "mesh", "perspective"], value="cylindrical", label="warp 模式")
+    with gr.Row(equal_height=True):
+        with gr.Column(scale=5):
+            with gr.Row():
+                mug_img = gr.Image(label="马克杯底图（可选）", type="pil", height=220)
+                art_img = gr.Image(label="印花图（必填）", type="pil", height=220)
 
-    with gr.Row():
-        q1 = gr.Textbox(value="0.33,0.34", label="左上")
-        q2 = gr.Textbox(value="0.67,0.33", label="右上")
-        q3 = gr.Textbox(value="0.67,0.74", label="右下")
-        q4 = gr.Textbox(value="0.34,0.75", label="左下")
+            with gr.Accordion("参数面板（紧凑）", open=True, elem_classes=["compact"]):
+                with gr.Row():
+                    quad_mode = gr.Dropdown(choices=["relative", "pixels"], value="relative", label="quad")
+                    warp_mode = gr.Dropdown(choices=["cylindrical", "mesh", "perspective"], value="cylindrical", label="warp")
 
-    with gr.Row():
-        mesh_cols = gr.Slider(8, 40, value=20, step=1, label="mesh cols")
-        mesh_rows = gr.Slider(8, 40, value=16, step=1, label="mesh rows")
+                with gr.Row():
+                    q1 = gr.Textbox(value="0.33,0.34", label="左上")
+                    q2 = gr.Textbox(value="0.67,0.33", label="右上")
+                    q3 = gr.Textbox(value="0.67,0.74", label="右下")
+                    q4 = gr.Textbox(value="0.34,0.75", label="左下")
 
-    with gr.Row():
-        curve_strength = gr.Slider(0.1, 0.9, value=0.45, step=0.01, label="curve strength")
-        shading_strength = gr.Slider(0.0, 0.4, value=0.14, step=0.01, label="shading strength")
+                with gr.Row():
+                    mesh_cols = gr.Slider(8, 40, value=20, step=1, label="mesh cols")
+                    mesh_rows = gr.Slider(8, 40, value=16, step=1, label="mesh rows")
 
-    with gr.Row():
-        edge_fade = gr.Slider(0.05, 0.5, value=0.24, step=0.01, label="edge fade")
-        projection_strength = gr.Slider(0.0, 0.6, value=0.28, step=0.01, label="projection strength")
-        occlusion_strength = gr.Slider(0.0, 0.8, value=0.40, step=0.01, label="occlusion strength")
+                with gr.Row():
+                    curve_strength = gr.Slider(0.1, 0.9, value=0.45, step=0.01, label="curve")
+                    shading_strength = gr.Slider(0.0, 0.4, value=0.14, step=0.01, label="shading")
 
-    btn = gr.Button("生成 Mockup", variant="primary")
-    out_img = gr.Image(label="输出效果图")
-    log = gr.Textbox(label="日志")
+                with gr.Row():
+                    edge_fade = gr.Slider(0.05, 0.5, value=0.24, step=0.01, label="edge")
+                    projection_strength = gr.Slider(0.0, 0.6, value=0.28, step=0.01, label="projection")
+                    occlusion_strength = gr.Slider(0.0, 0.8, value=0.40, step=0.01, label="occlusion")
+
+                btn = gr.Button("生成 Mockup", variant="primary", size="sm")
+
+        with gr.Column(scale=5):
+            out_img = gr.Image(label="输出效果图", height=560)
+            log = gr.Textbox(label="日志", lines=3)
 
     btn.click(
         run_mockup,
