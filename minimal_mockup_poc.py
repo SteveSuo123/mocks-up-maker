@@ -81,7 +81,8 @@ def bilinear_point(quad: np.ndarray, u: float, v: float) -> np.ndarray:
 def mesh_warp_artwork(artwork: Image.Image, dst_quad: np.ndarray, out_size: tuple[int, int], mesh_cols=20, mesh_rows=16, curve=0.55) -> Image.Image:
     src_w, src_h = artwork.size
     src = np.array(artwork.convert("RGBA"))
-    out = np.zeros((out_size[1], out_size[0], 4), dtype=np.uint8)
+    out_rgb = np.zeros((out_size[1], out_size[0], 3), dtype=np.float32)
+    out_a = np.zeros((out_size[1], out_size[0]), dtype=np.float32)
 
     for j in range(mesh_rows):
         v0, v1 = j / mesh_rows, (j + 1) / mesh_rows
@@ -105,9 +106,20 @@ def mesh_warp_artwork(artwork: Image.Image, dst_quad: np.ndarray, out_size: tupl
 
             m = cv2.getPerspectiveTransform(src_cell, dst_cell)
             warped = cv2.warpPerspective(src, m, out_size, flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_TRANSPARENT)
-            alpha = warped[:, :, 3] > 0
-            out[alpha] = warped[alpha]
+            wa = (warped[:, :, 3].astype(np.float32) / 255.0)
 
+            # soft accumulation avoids cell-boundary seams/striping
+            wa = cv2.GaussianBlur(wa, (3, 3), 0.0)
+            wrgb = warped[:, :, :3].astype(np.float32)
+
+            comp = wa * (1.0 - out_a)
+            out_rgb += wrgb * comp[:, :, None]
+            out_a += comp
+
+    out_a_safe = np.clip(out_a, 1e-6, 1.0)
+    final_rgb = np.clip(out_rgb / out_a_safe[:, :, None], 0, 255).astype(np.uint8)
+    final_a = np.clip(out_a * 255.0, 0, 255).astype(np.uint8)
+    out = np.dstack([final_rgb, final_a])
     return Image.fromarray(out, "RGBA")
 
 

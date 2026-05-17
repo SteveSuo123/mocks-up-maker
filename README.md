@@ -44,3 +44,13 @@ python minimal_mockup_poc.py \
 ```bash
 python minimal_mockup_poc_stdlib.py --out output/mockup_preview.ppm
 ```
+
+
+## 常见问题：融合后有条纹感
+
+已在 mesh 渲染中加入软化叠加，减少网格边界条纹。
+如果仍有轻微条纹，可尝试：
+
+- 提高网格密度：`--mesh-cols 28 --mesh-rows 22`
+- 降低曲率强度：`--curve-strength 0.45`
+- 适当降低光照调制：`--shading-strength 0.12`
