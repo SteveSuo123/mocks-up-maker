@@ -63,3 +63,13 @@ python minimal_mockup_poc_stdlib.py --out output/mockup_preview.ppm
 - `--curve-strength 0.40~0.50`
 - 降低 `--shading-strength` 到 `0.10~0.16`
 - 避免过小或高压缩的源图
+
+
+## 常见问题：右侧没有贴在杯子上
+
+已加入更强的右侧曲面贴附策略（右侧 alpha 收边 + 垂直羽化 + 基于杯子亮度的印花调制）。
+建议参数：
+- `--warp-mode cylindrical`
+- `--curve-strength 0.42~0.50`
+- `--edge-fade 0.24~0.30`
+- `--shading-strength 0.12~0.18`

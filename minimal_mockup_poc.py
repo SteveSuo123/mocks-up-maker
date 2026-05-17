@@ -44,19 +44,19 @@ def create_layers(size: tuple[int, int], dst_quad: np.ndarray):
     w, h = size
     mask = Image.new("L", size, 0)
     ImageDraw.Draw(mask).polygon([tuple(p) for p in dst_quad], fill=255)
-    mask = mask.filter(ImageFilter.GaussianBlur(0.8))
+    mask = mask.filter(ImageFilter.GaussianBlur(1.2))
 
     shadow = Image.new("L", size, 0)
     sdraw = ImageDraw.Draw(shadow)
     qx = [p[0] for p in dst_quad]
     qy = [p[1] for p in dst_quad]
-    sdraw.ellipse((min(qx) - 80, min(qy) - 60, max(qx) + 80, max(qy) + 90), fill=64)
-    shadow = shadow.filter(ImageFilter.GaussianBlur(36))
+    sdraw.ellipse((min(qx) - 90, min(qy) - 70, max(qx) + 90, max(qy) + 100), fill=58)
+    shadow = shadow.filter(ImageFilter.GaussianBlur(42))
 
     highlight = Image.new("L", size, 0)
     hdraw = ImageDraw.Draw(highlight)
-    hdraw.ellipse((int(w * 0.3), int(h * 0.25), int(w * 0.43), int(h * 0.76)), fill=95)
-    highlight = highlight.filter(ImageFilter.GaussianBlur(38))
+    hdraw.ellipse((int(w * 0.30), int(h * 0.24), int(w * 0.44), int(h * 0.78)), fill=85)
+    highlight = highlight.filter(ImageFilter.GaussianBlur(42))
     return mask, shadow, highlight
 
 
@@ -157,30 +157,53 @@ def apply_cylindrical_shading(warped: Image.Image, dst_quad: np.ndarray, strengt
     arr = np.array(warped, dtype=np.float32)
     h, w = arr.shape[:2]
     min_x, max_x = int(np.min(dst_quad[:, 0])), int(np.max(dst_quad[:, 0]))
+    min_y, max_y = int(np.min(dst_quad[:, 1])), int(np.max(dst_quad[:, 1]))
     min_x = max(0, min_x); max_x = min(w - 1, max_x)
+    min_y = max(0, min_y); max_y = min(h - 1, max_y)
 
+    # smooth cylindrical matte: right side stronger wrap to avoid floating edge
     for x in range(min_x, max_x + 1):
         u = (x - min_x) / max(1, (max_x - min_x))
-        # center brighter, edges darker
         shade = (1 - strength) + strength * math.exp(-((u - 0.5) ** 2) / 0.08)
-        arr[:, x, :3] *= shade
 
-        # fade alpha near both edges (stronger on right side) so print sinks into mug curvature
         left_f = np.clip(u / max(1e-6, edge_fade), 0.0, 1.0)
-        right_f = np.clip((1.0 - u) / max(1e-6, edge_fade * 0.85), 0.0, 1.0)
-        edge_alpha = min(left_f, right_f)
-        arr[:, x, 3] *= edge_alpha
+        right_f = np.clip((1.0 - u) / max(1e-6, edge_fade * 0.65), 0.0, 1.0)
+        side_alpha = min(left_f, right_f)
 
+        for y in range(min_y, max_y + 1):
+            v = (y - min_y) / max(1, (max_y - min_y))
+            top = np.clip(v / 0.08, 0.0, 1.0)
+            bottom = np.clip((1.0 - v) / 0.08, 0.0, 1.0)
+            vertical_alpha = min(top, bottom)
+            alpha_mul = side_alpha * vertical_alpha
+
+            arr[y, x, :3] *= shade
+            arr[y, x, 3] *= alpha_mul
+
+    # slight blur on alpha to remove hard matte transitions
+    arr[:, :, 3] = cv2.GaussianBlur(arr[:, :, 3], (5, 5), 0.0)
     return Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8), "RGBA")
 
 
 def blend(base: Image.Image, warped: Image.Image, mask: Image.Image, shadow: Image.Image, highlight: Image.Image) -> Image.Image:
-    canvas = base.copy()
-    canvas.paste(warped, (0, 0), mask)
-    shadow_rgba = Image.merge("RGBA", (shadow, shadow, shadow, shadow.point(lambda v: int(v * 0.38))))
+    base_arr = np.array(base.convert("RGBA"), dtype=np.float32)
+    w_arr = np.array(warped.convert("RGBA"), dtype=np.float32)
+    m = np.array(mask, dtype=np.float32) / 255.0
+    wa = (w_arr[:, :, 3] / 255.0) * m
+
+    # preserve cup lighting: modulate print by base luminance
+    lum = (0.2126 * base_arr[:, :, 0] + 0.7152 * base_arr[:, :, 1] + 0.0722 * base_arr[:, :, 2]) / 255.0
+    light = 0.82 + 0.22 * lum
+    pr = w_arr[:, :, :3] * light[:, :, None]
+
+    out_rgb = base_arr[:, :, :3] * (1.0 - wa[:, :, None]) + pr * wa[:, :, None]
+    out = np.dstack([np.clip(out_rgb, 0, 255), base_arr[:, :, 3]])
+    canvas = Image.fromarray(out.astype(np.uint8), "RGBA")
+
+    shadow_rgba = Image.merge("RGBA", (shadow, shadow, shadow, shadow.point(lambda v: int(v * 0.34))))
     canvas = Image.alpha_composite(canvas, shadow_rgba)
     hi = Image.new("RGBA", canvas.size, (255, 255, 255, 0))
-    hi.putalpha(highlight.point(lambda v: int(v * 0.24)))
+    hi.putalpha(highlight.point(lambda v: int(v * 0.22)))
     return Image.alpha_composite(canvas, hi)
 
 
