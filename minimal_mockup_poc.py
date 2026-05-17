@@ -78,6 +78,27 @@ def bilinear_point(quad: np.ndarray, u: float, v: float) -> np.ndarray:
     return (1-u)*(1-v)*p00 + u*(1-v)*p10 + u*v*p11 + (1-u)*v*p01
 
 
+
+
+def cylindrical_prewarp_artwork(artwork: Image.Image, curve: float) -> Image.Image:
+    src = np.array(artwork.convert("RGBA"))
+    h, w = src.shape[:2]
+    map_x = np.zeros((h, w), dtype=np.float32)
+    map_y = np.zeros((h, w), dtype=np.float32)
+
+    for x in range(w):
+        u = x / max(1, (w - 1))
+        centered = (u - 0.5) * 2.0
+        warped_u = 0.5 + math.sin(centered * math.pi / 2.0) * (curve * 0.9)
+        src_x = np.clip(warped_u * (w - 1), 0, w - 1)
+        map_x[:, x] = src_x
+
+    for y in range(h):
+        map_y[y, :] = y
+
+    warped = cv2.remap(src, map_x, map_y, interpolation=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REFLECT)
+    return Image.fromarray(warped, "RGBA")
+
 def mesh_warp_artwork(artwork: Image.Image, dst_quad: np.ndarray, out_size: tuple[int, int], mesh_cols=20, mesh_rows=16, curve=0.55) -> Image.Image:
     src_w, src_h = artwork.size
     src = np.array(artwork.convert("RGBA"))
@@ -168,7 +189,7 @@ def main() -> None:
     parser.add_argument("--out", type=Path, default=Path("output/mockup_preview.png"))
     parser.add_argument("--quad", nargs=4, default=None)
     parser.add_argument("--quad-mode", "--quad_mode", dest="quad_mode", choices=["pixels", "relative"], default="pixels")
-    parser.add_argument("--warp-mode", choices=["perspective", "mesh"], default="mesh")
+    parser.add_argument("--warp-mode", choices=["perspective", "mesh", "cylindrical"], default="cylindrical")
     parser.add_argument("--mesh-cols", type=int, default=20)
     parser.add_argument("--mesh-rows", type=int, default=16)
     parser.add_argument("--curve-strength", type=float, default=0.55)
@@ -195,6 +216,9 @@ def main() -> None:
     artwork = Image.open(args.artwork).convert("RGBA")
     if args.warp_mode == "mesh":
         warped = mesh_warp_artwork(artwork, dst_quad, base.size, mesh_cols=args.mesh_cols, mesh_rows=args.mesh_rows, curve=args.curve_strength)
+    elif args.warp_mode == "cylindrical":
+        pre = cylindrical_prewarp_artwork(artwork, args.curve_strength)
+        warped = warp_artwork_perspective(pre, dst_quad, base.size)
     else:
         warped = warp_artwork_perspective(artwork, dst_quad, base.size)
 

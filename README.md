@@ -21,10 +21,8 @@ python minimal_mockup_poc.py \
   --artwork samples/2.jpg \
   --quad-mode relative \
   --quad 0.33,0.34 0.67,0.33 0.67,0.74 0.34,0.75 \
-  --warp-mode mesh \
-  --mesh-cols 20 \
-  --mesh-rows 16 \
-  --curve-strength 0.55 \
+  --warp-mode cylindrical \
+  --curve-strength 0.45 \
   --shading-strength 0.18 \
   --debug-quad-out output/quad_debug.png \
   --out output/my_mug_mockup.png
@@ -32,7 +30,7 @@ python minimal_mockup_poc.py \
 
 ### 参数说明
 
-- `--warp-mode perspective|mesh`: 普通透视或网格变形（推荐 mesh）
+- `--warp-mode perspective|mesh|cylindrical`: 普通透视、网格变形、圆柱预变形（推荐 cylindrical，条纹最少）
 - `--mesh-cols`, `--mesh-rows`: 网格密度
 - `--curve-strength`: 圆柱曲率强度（0.4~0.7 常用）
 - `--shading-strength`: 印花区域光照调制强度（0.1~0.3 常用）
@@ -54,3 +52,12 @@ python minimal_mockup_poc_stdlib.py --out output/mockup_preview.ppm
 - 提高网格密度：`--mesh-cols 28 --mesh-rows 22`
 - 降低曲率强度：`--curve-strength 0.45`
 - 适当降低光照调制：`--shading-strength 0.12`
+
+
+## 常见问题：有明显竖条
+
+优先使用 `--warp-mode cylindrical`（默认），它使用连续 remap，不依赖网格块拼接，竖条最少。
+若仍有条纹：
+- `--curve-strength 0.40~0.50`
+- 降低 `--shading-strength` 到 `0.10~0.16`
+- 避免过小或高压缩的源图
