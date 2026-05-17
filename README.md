@@ -80,3 +80,22 @@ python minimal_mockup_poc_stdlib.py --out output/mockup_preview.ppm
 
 
 > 若你遇到“右侧没贴上去，而且不是边缘问题”，请提高 `--projection-strength` 与 `--occlusion-strength`，这两个参数作用于整体曲面投影和杯体遮蔽，而不仅仅是边缘。
+
+
+## 高效调参（批量而不是单次对话）
+
+### 1) 批量出图
+
+```bash
+python sweep_params.py
+```
+
+会在 `output/sweep/` 下生成多组参数结果图，文件名包含参数值。
+
+### 2) 生成对比拼图
+
+```bash
+python make_contact_sheet.py
+```
+
+会生成：`output/sweep_contact_sheet.jpg`，用于一眼筛选最优参数。
