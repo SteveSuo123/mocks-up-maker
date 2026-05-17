@@ -125,7 +125,7 @@ def main() -> None:
     parser.add_argument("--artwork", type=Path, default=Path("samples/artwork.png"))
     parser.add_argument("--out", type=Path, default=Path("output/mockup_preview.png"))
     parser.add_argument("--quad", nargs=4, default=None, help="Four points: x1,y1 x2,y2 x3,y3 x4,y4")
-    parser.add_argument("--quad-mode", choices=["pixels", "relative"], default="pixels", help="Interpret quad as pixels or 0-1 relative coords.")
+    parser.add_argument("--quad-mode", "--quad_mode", dest="quad_mode", choices=["pixels", "relative"], default="pixels", help="Interpret quad as pixels or 0-1 relative coords.")
     parser.add_argument("--debug-quad-out", type=Path, default=None, help="Optional path to save mug image with quad overlay.")
     args = parser.parse_args()
 

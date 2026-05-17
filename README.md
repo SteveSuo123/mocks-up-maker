@@ -46,3 +46,16 @@ python minimal_mockup_poc.py \
 ```bash
 python minimal_mockup_poc_stdlib.py --out output/mockup_preview.ppm
 ```
+
+
+### PowerShell 一行版（Windows）
+
+```powershell
+python minimal_mockup_poc.py --mug samples/m.png --artwork samples/2.jpg --quad-mode relative --quad 0.33,0.34 0.67,0.33 0.67,0.74 0.34,0.75 --out output/my_mug_mockup1.png
+```
+
+如果提示 `unrecognized arguments: --quad-mode relative`，请先确认是最新脚本，或使用兼容别名：
+
+```powershell
+python minimal_mockup_poc.py --mug samples/m.png --artwork samples/2.jpg --quad_mode relative --quad 0.33,0.34 0.67,0.33 0.67,0.74 0.34,0.75 --out output/my_mug_mockup1.png
+```
