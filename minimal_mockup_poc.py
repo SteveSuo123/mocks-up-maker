@@ -153,15 +153,24 @@ def warp_artwork_perspective(artwork: Image.Image, dst_quad: np.ndarray, out_siz
     return Image.fromarray(warped, "RGBA")
 
 
-def apply_cylindrical_shading(warped: Image.Image, dst_quad: np.ndarray, strength: float) -> Image.Image:
+def apply_cylindrical_shading(warped: Image.Image, dst_quad: np.ndarray, strength: float, edge_fade: float = 0.22) -> Image.Image:
     arr = np.array(warped, dtype=np.float32)
     h, w = arr.shape[:2]
     min_x, max_x = int(np.min(dst_quad[:, 0])), int(np.max(dst_quad[:, 0]))
     min_x = max(0, min_x); max_x = min(w - 1, max_x)
+
     for x in range(min_x, max_x + 1):
         u = (x - min_x) / max(1, (max_x - min_x))
+        # center brighter, edges darker
         shade = (1 - strength) + strength * math.exp(-((u - 0.5) ** 2) / 0.08)
         arr[:, x, :3] *= shade
+
+        # fade alpha near both edges (stronger on right side) so print sinks into mug curvature
+        left_f = np.clip(u / max(1e-6, edge_fade), 0.0, 1.0)
+        right_f = np.clip((1.0 - u) / max(1e-6, edge_fade * 0.85), 0.0, 1.0)
+        edge_alpha = min(left_f, right_f)
+        arr[:, x, 3] *= edge_alpha
+
     return Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8), "RGBA")
 
 
@@ -194,6 +203,7 @@ def main() -> None:
     parser.add_argument("--mesh-rows", type=int, default=16)
     parser.add_argument("--curve-strength", type=float, default=0.55)
     parser.add_argument("--shading-strength", type=float, default=0.18)
+    parser.add_argument("--edge-fade", type=float, default=0.22)
     parser.add_argument("--debug-quad-out", type=Path, default=None)
     args = parser.parse_args()
 
@@ -222,7 +232,7 @@ def main() -> None:
     else:
         warped = warp_artwork_perspective(artwork, dst_quad, base.size)
 
-    warped = apply_cylindrical_shading(warped, dst_quad, args.shading_strength)
+    warped = apply_cylindrical_shading(warped, dst_quad, args.shading_strength, args.edge_fade)
     mask, shadow, highlight = create_layers(base.size, dst_quad)
     result = blend(base, warped, mask, shadow, highlight)
     result.save(args.out)

@@ -24,6 +24,7 @@ python minimal_mockup_poc.py \
   --warp-mode cylindrical \
   --curve-strength 0.45 \
   --shading-strength 0.18 \
+  --edge-fade 0.24 \
   --debug-quad-out output/quad_debug.png \
   --out output/my_mug_mockup.png
 ```
@@ -34,6 +35,7 @@ python minimal_mockup_poc.py \
 - `--mesh-cols`, `--mesh-rows`: 网格密度
 - `--curve-strength`: 圆柱曲率强度（0.4~0.7 常用）
 - `--shading-strength`: 印花区域光照调制强度（0.1~0.3 常用）
+- `--edge-fade`: 印花边缘淡出（0.16~0.30），可解决“右边像没贴在杯子上”
 - `--quad-mode`: `pixels` 或 `relative`
 - `--debug-quad-out`: 导出红色印刷区调试图
 
