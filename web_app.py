@@ -76,9 +76,7 @@ def run_mockup(mug_img, art_img, quad_mode, q1, q2, q3, q4, warp_mode, mesh_cols
                         mesh_cols=int(mesh_cols), mesh_rows=int(mesh_rows), curve_strength=float(curve_strength),
                         shading_strength=float(shading_strength), edge_fade=float(edge_fade), projection_strength=float(projection_strength),
                         occlusion_strength=float(occlusion_strength), debug_quad_out=debug_path)
-    return str(out_path), f"生成完成
-结果: {out_path}
-Quad调试图: {debug_path}"
+    return str(out_path), f"生成完成\n结果: {out_path}\nQuad调试图: {debug_path}"
 
 
 css = ".compact .gr-form,.compact .gr-box,.compact .block,.compact .gr-group{padding:6px!important;margin:4px 0!important;}"
