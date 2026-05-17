@@ -25,6 +25,8 @@ python minimal_mockup_poc.py \
   --curve-strength 0.45 \
   --shading-strength 0.18 \
   --edge-fade 0.24 \
+  --projection-strength 0.24 \
+  --occlusion-strength 0.35 \
   --debug-quad-out output/quad_debug.png \
   --out output/my_mug_mockup.png
 ```
@@ -35,7 +37,9 @@ python minimal_mockup_poc.py \
 - `--mesh-cols`, `--mesh-rows`: 网格密度
 - `--curve-strength`: 圆柱曲率强度（0.4~0.7 常用）
 - `--shading-strength`: 印花区域光照调制强度（0.1~0.3 常用）
-- `--edge-fade`: 印花边缘淡出（0.16~0.30），可解决“右边像没贴在杯子上”
+- `--edge-fade`: 印花边缘淡出（0.16~0.30）
+- `--projection-strength`: 画布空间圆柱投影强度，解决右侧“漂浮感”
+- `--occlusion-strength`: 基于杯子明暗的遮蔽强度，让右侧更像绕到背面
 - `--quad-mode`: `pixels` 或 `relative`
 - `--debug-quad-out`: 导出红色印刷区调试图
 
@@ -73,3 +77,6 @@ python minimal_mockup_poc_stdlib.py --out output/mockup_preview.ppm
 - `--curve-strength 0.42~0.50`
 - `--edge-fade 0.24~0.30`
 - `--shading-strength 0.12~0.18`
+
+
+> 若你遇到“右侧没贴上去，而且不是边缘问题”，请提高 `--projection-strength` 与 `--occlusion-strength`，这两个参数作用于整体曲面投影和杯体遮蔽，而不仅仅是边缘。

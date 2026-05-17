@@ -185,6 +185,55 @@ def apply_cylindrical_shading(warped: Image.Image, dst_quad: np.ndarray, strengt
     return Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8), "RGBA")
 
 
+
+
+def apply_canvas_cylindrical_projection(warped: Image.Image, dst_quad: np.ndarray, strength: float = 0.22) -> Image.Image:
+    """Project already-warped print onto canvas-space cylinder to avoid right-side floating."""
+    arr = np.array(warped.convert("RGBA"))
+    h, w = arr.shape[:2]
+    min_x, max_x = int(np.min(dst_quad[:, 0])), int(np.max(dst_quad[:, 0]))
+    min_y, max_y = int(np.min(dst_quad[:, 1])), int(np.max(dst_quad[:, 1]))
+    min_x = max(0, min_x); max_x = min(w - 1, max_x)
+    min_y = max(0, min_y); max_y = min(h - 1, max_y)
+
+    roi = arr[min_y:max_y+1, min_x:max_x+1].copy()
+    rh, rw = roi.shape[:2]
+    map_x = np.zeros((rh, rw), dtype=np.float32)
+    map_y = np.zeros((rh, rw), dtype=np.float32)
+
+    for y in range(rh):
+        map_y[y, :] = y
+    for x in range(rw):
+        u = x / max(1, rw - 1)
+        c = (u - 0.5) * 2.0
+        # compress both sides in canvas space, stronger on right to sink into mug
+        bend = math.sin(c * math.pi / 2.0) * (strength * (1.0 + 0.35 * max(0.0, c)))
+        src_u = 0.5 + bend * 0.5
+        map_x[:, x] = np.clip(src_u * (rw - 1), 0, rw - 1)
+
+    warped_roi = cv2.remap(roi, map_x, map_y, interpolation=cv2.INTER_CUBIC, borderMode=cv2.BORDER_TRANSPARENT)
+    arr[min_y:max_y+1, min_x:max_x+1] = warped_roi
+    return Image.fromarray(arr, "RGBA")
+
+
+def apply_base_occlusion_alpha(warped: Image.Image, base: Image.Image, dst_quad: np.ndarray, occlusion_strength: float = 0.35) -> Image.Image:
+    """Use base mug luminance to push print behind darker curvature areas (esp. right side)."""
+    w_arr = np.array(warped.convert("RGBA"), dtype=np.float32)
+    b_arr = np.array(base.convert("RGB"), dtype=np.float32)
+    lum = (0.2126 * b_arr[:, :, 0] + 0.7152 * b_arr[:, :, 1] + 0.0722 * b_arr[:, :, 2]) / 255.0
+
+    min_x, max_x = int(np.min(dst_quad[:, 0])), int(np.max(dst_quad[:, 0]))
+    min_y, max_y = int(np.min(dst_quad[:, 1])), int(np.max(dst_quad[:, 1]))
+    min_x = max(0, min_x); max_x = min(w_arr.shape[1] - 1, max_x)
+    min_y = max(0, min_y); max_y = min(w_arr.shape[0] - 1, max_y)
+
+    roi_l = lum[min_y:max_y+1, min_x:max_x+1]
+    # darker = more occlusion
+    occ = 1.0 - occlusion_strength * np.clip((0.58 - roi_l) / 0.58, 0.0, 1.0)
+    w_arr[min_y:max_y+1, min_x:max_x+1, 3] *= occ
+    w_arr[:, :, 3] = cv2.GaussianBlur(w_arr[:, :, 3], (3, 3), 0)
+    return Image.fromarray(np.clip(w_arr, 0, 255).astype(np.uint8), "RGBA")
+
 def blend(base: Image.Image, warped: Image.Image, mask: Image.Image, shadow: Image.Image, highlight: Image.Image) -> Image.Image:
     base_arr = np.array(base.convert("RGBA"), dtype=np.float32)
     w_arr = np.array(warped.convert("RGBA"), dtype=np.float32)
@@ -227,6 +276,8 @@ def main() -> None:
     parser.add_argument("--curve-strength", type=float, default=0.55)
     parser.add_argument("--shading-strength", type=float, default=0.18)
     parser.add_argument("--edge-fade", type=float, default=0.22)
+    parser.add_argument("--projection-strength", type=float, default=0.22)
+    parser.add_argument("--occlusion-strength", type=float, default=0.35)
     parser.add_argument("--debug-quad-out", type=Path, default=None)
     args = parser.parse_args()
 
@@ -255,7 +306,9 @@ def main() -> None:
     else:
         warped = warp_artwork_perspective(artwork, dst_quad, base.size)
 
+    warped = apply_canvas_cylindrical_projection(warped, dst_quad, args.projection_strength)
     warped = apply_cylindrical_shading(warped, dst_quad, args.shading_strength, args.edge_fade)
+    warped = apply_base_occlusion_alpha(warped, base, dst_quad, args.occlusion_strength)
     mask, shadow, highlight = create_layers(base.size, dst_quad)
     result = blend(base, warped, mask, shadow, highlight)
     result.save(args.out)
