@@ -99,3 +99,17 @@ python make_contact_sheet.py
 ```
 
 会生成：`output/sweep_contact_sheet.jpg`，用于一眼筛选最优参数。
+
+
+## Web 端交互调参
+
+运行：
+
+```bash
+python web_app.py
+```
+
+浏览器打开 `http://localhost:7860`，上传杯子图和印花图后可通过滑杆实时调参并生成效果图。
+
+- 输出图：`output/web/web_mockup.png`
+- Quad 调试图：`output/web/web_quad_debug.png`

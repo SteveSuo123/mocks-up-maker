@@ -263,6 +263,56 @@ def draw_debug_quad(base: Image.Image, quad: np.ndarray) -> Image.Image:
     return img
 
 
+def generate_mockup(
+    mug: Path | None,
+    artwork: Path,
+    out: Path,
+    quad: list[str] | None = None,
+    quad_mode: str = "pixels",
+    warp_mode: str = "cylindrical",
+    mesh_cols: int = 20,
+    mesh_rows: int = 16,
+    curve_strength: float = 0.55,
+    shading_strength: float = 0.18,
+    edge_fade: float = 0.22,
+    projection_strength: float = 0.22,
+    occlusion_strength: float = 0.35,
+    debug_quad_out: Path | None = None,
+) -> Path:
+    out.parent.mkdir(parents=True, exist_ok=True)
+    artwork.parent.mkdir(parents=True, exist_ok=True)
+    if not artwork.exists():
+        create_default_artwork(artwork)
+
+    if mug is not None:
+        base = Image.open(mug).convert("RGBA")
+        default_quad = np.float32([[base.width * 0.34, base.height * 0.34], [base.width * 0.68, base.height * 0.33], [base.width * 0.67, base.height * 0.74], [base.width * 0.35, base.height * 0.75]])
+    else:
+        base, default_quad = create_default_mug_template()
+
+    dst_quad = parse_quad(quad, default_quad, base.width, base.height, quad_mode)
+    if debug_quad_out is not None:
+        debug_quad_out.parent.mkdir(parents=True, exist_ok=True)
+        draw_debug_quad(base, dst_quad).save(debug_quad_out)
+
+    artwork_img = Image.open(artwork).convert("RGBA")
+    if warp_mode == "mesh":
+        warped = mesh_warp_artwork(artwork_img, dst_quad, base.size, mesh_cols=mesh_cols, mesh_rows=mesh_rows, curve=curve_strength)
+    elif warp_mode == "cylindrical":
+        pre = cylindrical_prewarp_artwork(artwork_img, curve_strength)
+        warped = warp_artwork_perspective(pre, dst_quad, base.size)
+    else:
+        warped = warp_artwork_perspective(artwork_img, dst_quad, base.size)
+
+    warped = apply_canvas_cylindrical_projection(warped, dst_quad, projection_strength)
+    warped = apply_cylindrical_shading(warped, dst_quad, shading_strength, edge_fade)
+    warped = apply_base_occlusion_alpha(warped, base, dst_quad, occlusion_strength)
+    mask, shadow, highlight = create_layers(base.size, dst_quad)
+    result = blend(base, warped, mask, shadow, highlight)
+    result.save(out)
+    return out
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Generate a mockup preview with custom mug/artwork.")
     parser.add_argument("--mug", type=Path, default=None)
@@ -281,38 +331,23 @@ def main() -> None:
     parser.add_argument("--debug-quad-out", type=Path, default=None)
     args = parser.parse_args()
 
-    args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.artwork.parent.mkdir(parents=True, exist_ok=True)
-    if not args.artwork.exists():
-        create_default_artwork(args.artwork)
-
-    if args.mug is not None:
-        base = Image.open(args.mug).convert("RGBA")
-        default_quad = np.float32([[base.width * 0.34, base.height * 0.34], [base.width * 0.68, base.height * 0.33], [base.width * 0.67, base.height * 0.74], [base.width * 0.35, base.height * 0.75]])
-    else:
-        base, default_quad = create_default_mug_template()
-
-    dst_quad = parse_quad(args.quad, default_quad, base.width, base.height, args.quad_mode)
-    if args.debug_quad_out is not None:
-        args.debug_quad_out.parent.mkdir(parents=True, exist_ok=True)
-        draw_debug_quad(base, dst_quad).save(args.debug_quad_out)
-
-    artwork = Image.open(args.artwork).convert("RGBA")
-    if args.warp_mode == "mesh":
-        warped = mesh_warp_artwork(artwork, dst_quad, base.size, mesh_cols=args.mesh_cols, mesh_rows=args.mesh_rows, curve=args.curve_strength)
-    elif args.warp_mode == "cylindrical":
-        pre = cylindrical_prewarp_artwork(artwork, args.curve_strength)
-        warped = warp_artwork_perspective(pre, dst_quad, base.size)
-    else:
-        warped = warp_artwork_perspective(artwork, dst_quad, base.size)
-
-    warped = apply_canvas_cylindrical_projection(warped, dst_quad, args.projection_strength)
-    warped = apply_cylindrical_shading(warped, dst_quad, args.shading_strength, args.edge_fade)
-    warped = apply_base_occlusion_alpha(warped, base, dst_quad, args.occlusion_strength)
-    mask, shadow, highlight = create_layers(base.size, dst_quad)
-    result = blend(base, warped, mask, shadow, highlight)
-    result.save(args.out)
-    print(f"Generated mockup: {args.out}")
+    out = generate_mockup(
+        mug=args.mug,
+        artwork=args.artwork,
+        out=args.out,
+        quad=args.quad,
+        quad_mode=args.quad_mode,
+        warp_mode=args.warp_mode,
+        mesh_cols=args.mesh_cols,
+        mesh_rows=args.mesh_rows,
+        curve_strength=args.curve_strength,
+        shading_strength=args.shading_strength,
+        edge_fade=args.edge_fade,
+        projection_strength=args.projection_strength,
+        occlusion_strength=args.occlusion_strength,
+        debug_quad_out=args.debug_quad_out,
+    )
+    print(f"Generated mockup: {out}")
 
 
 if __name__ == "__main__":
