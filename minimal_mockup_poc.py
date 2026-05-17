@@ -6,6 +6,7 @@ Now supports:
 - User-provided mug image (`--mug`)
 - User-provided artwork (`--artwork`)
 - Custom print area quad (`--quad x1,y1 x2,y2 x3,y3 x4,y4`)
+- Pixel/relative quad mode and debug preview
 """
 
 from pathlib import Path
@@ -49,27 +50,40 @@ def create_layers(size: tuple[int, int], dst_quad: np.ndarray):
     sdraw = ImageDraw.Draw(shadow)
     qx = [p[0] for p in dst_quad]
     qy = [p[1] for p in dst_quad]
-    sdraw.ellipse((min(qx) - 80, min(qy) - 60, max(qx) + 80, max(qy) + 90), fill=80)
-    shadow = shadow.filter(ImageFilter.GaussianBlur(40))
+    sdraw.ellipse((min(qx) - 80, min(qy) - 60, max(qx) + 80, max(qy) + 90), fill=64)
+    shadow = shadow.filter(ImageFilter.GaussianBlur(36))
 
     highlight = Image.new("L", size, 0)
     hdraw = ImageDraw.Draw(highlight)
-    hdraw.ellipse((int(w * 0.31), int(h * 0.28), int(w * 0.43), int(h * 0.76)), fill=125)
-    highlight = highlight.filter(ImageFilter.GaussianBlur(46))
+    hdraw.ellipse((int(w * 0.3), int(h * 0.25), int(w * 0.43), int(h * 0.76)), fill=95)
+    highlight = highlight.filter(ImageFilter.GaussianBlur(38))
 
     return mask, shadow, highlight
 
 
-def parse_quad(quad_args: list[str] | None, default_dst_quad: np.ndarray) -> np.ndarray:
+def parse_quad(quad_args: list[str] | None, default_dst_quad: np.ndarray, width: int, height: int, quad_mode: str) -> np.ndarray:
     if not quad_args:
         return default_dst_quad
     if len(quad_args) != 4:
         raise ValueError("--quad needs exactly 4 points: x1,y1 x2,y2 x3,y3 x4,y4")
+
     points = []
     for token in quad_args:
         x_str, y_str = token.split(",")
-        points.append([float(x_str), float(y_str)])
-    return np.float32(points)
+        x, y = float(x_str), float(y_str)
+        if quad_mode == "relative":
+            x, y = x * width, y * height
+        points.append([x, y])
+
+    quad = np.float32(points)
+    min_x, max_x = float(np.min(quad[:, 0])), float(np.max(quad[:, 0]))
+    min_y, max_y = float(np.min(quad[:, 1])), float(np.max(quad[:, 1]))
+
+    if max_x < 0 or max_y < 0 or min_x > width or min_y > height:
+        raise ValueError(
+            f"Quad is outside mug image. image={width}x{height}, quad_bbox=({min_x:.1f},{min_y:.1f})-({max_x:.1f},{max_y:.1f})."
+        )
+    return quad
 
 
 def warp_artwork(artwork: Image.Image, dst_quad: np.ndarray, out_size: tuple[int, int]) -> Image.Image:
@@ -85,13 +99,24 @@ def blend(base: Image.Image, warped: Image.Image, mask: Image.Image, shadow: Ima
     canvas = base.copy()
     canvas.paste(warped, (0, 0), mask)
 
-    shadow_rgba = Image.merge("RGBA", (shadow, shadow, shadow, shadow.point(lambda v: int(v * 0.52))))
+    shadow_rgba = Image.merge("RGBA", (shadow, shadow, shadow, shadow.point(lambda v: int(v * 0.38))))
     canvas = Image.alpha_composite(canvas, shadow_rgba)
 
     hi = Image.new("RGBA", canvas.size, (255, 255, 255, 0))
-    hi.putalpha(highlight.point(lambda v: int(v * 0.3)))
+    hi.putalpha(highlight.point(lambda v: int(v * 0.24)))
     canvas = Image.alpha_composite(canvas, hi)
     return canvas
+
+
+def draw_debug_quad(base: Image.Image, quad: np.ndarray) -> Image.Image:
+    img = base.copy()
+    d = ImageDraw.Draw(img)
+    pts = [tuple(map(float, p)) for p in quad]
+    d.polygon(pts, outline=(255, 32, 32, 255), width=5)
+    for i, p in enumerate(pts):
+        d.ellipse((p[0] - 7, p[1] - 7, p[0] + 7, p[1] + 7), fill=(255, 32, 32, 255))
+        d.text((p[0] + 10, p[1] - 12), str(i + 1), fill=(255, 32, 32, 255))
+    return img
 
 
 def main() -> None:
@@ -100,6 +125,8 @@ def main() -> None:
     parser.add_argument("--artwork", type=Path, default=Path("samples/artwork.png"))
     parser.add_argument("--out", type=Path, default=Path("output/mockup_preview.png"))
     parser.add_argument("--quad", nargs=4, default=None, help="Four points: x1,y1 x2,y2 x3,y3 x4,y4")
+    parser.add_argument("--quad-mode", choices=["pixels", "relative"], default="pixels", help="Interpret quad as pixels or 0-1 relative coords.")
+    parser.add_argument("--debug-quad-out", type=Path, default=None, help="Optional path to save mug image with quad overlay.")
     args = parser.parse_args()
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
@@ -119,9 +146,15 @@ def main() -> None:
     else:
         base, default_quad = create_default_mug_template()
 
-    dst_quad = parse_quad(args.quad, default_quad)
-    mask, shadow, highlight = create_layers(base.size, dst_quad)
+    dst_quad = parse_quad(args.quad, default_quad, base.width, base.height, args.quad_mode)
 
+    if args.debug_quad_out is not None:
+        args.debug_quad_out.parent.mkdir(parents=True, exist_ok=True)
+        debug_img = draw_debug_quad(base, dst_quad)
+        debug_img.save(args.debug_quad_out)
+        print(f"Saved quad debug image: {args.debug_quad_out}")
+
+    mask, shadow, highlight = create_layers(base.size, dst_quad)
     artwork = Image.open(args.artwork).convert("RGBA")
     warped = warp_artwork(artwork, dst_quad, base.size)
     result = blend(base, warped, mask, shadow, highlight)

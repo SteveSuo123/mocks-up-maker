@@ -13,30 +13,33 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 使用内置马克杯模板
+### 使用你自己的马克杯图 + 融合图（像素坐标）
 
 ```bash
 python minimal_mockup_poc.py \
-  --artwork samples/artwork.png \
-  --out output/mockup_preview.png
-```
-
-### 使用你自己的马克杯图 + 融合图
-
-```bash
-python minimal_mockup_poc.py \
-  --mug samples/my_mug.jpg \
-  --artwork samples/my_design.png \
+  --mug samples/m.png \
+  --artwork samples/2.jpg \
   --quad 460,300 820,285 840,640 470,655 \
+  --debug-quad-out output/quad_debug.png \
   --out output/my_mug_mockup.png
 ```
 
-- `--mug`: 你的马克杯底图（JPG/PNG）
-- `--artwork`: 要融合的图案
-- `--quad`: 印刷区域四点（左上、右上、右下、左下）
-- `--out`: 输出文件
+### 使用相对坐标（推荐跨不同分辨率）
 
-> 如果不传 `--quad`，程序会使用一个基于图片尺寸的默认区域。
+```bash
+python minimal_mockup_poc.py \
+  --mug samples/m.png \
+  --artwork samples/2.jpg \
+  --quad-mode relative \
+  --quad 0.33,0.34 0.67,0.33 0.67,0.74 0.34,0.75 \
+  --out output/my_mug_mockup.png
+```
+
+- `--quad-mode pixels`: `--quad` 按像素解释（默认）
+- `--quad-mode relative`: `--quad` 按 0~1 比例解释
+- `--debug-quad-out`: 输出红色四边形调试图，先确认印刷区域位置再做融合
+
+> 你反馈“看不到融合效果”通常是 `--quad` 与杯子图分辨率不匹配。优先先看 `--debug-quad-out` 是否覆盖在杯身上。
 
 ## 方式 B：无依赖快速测试
 
