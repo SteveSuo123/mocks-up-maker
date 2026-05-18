@@ -159,3 +159,36 @@ Web 端已支持三种坐标调节 panel：
 3. **方式三：预设模板**（适合先套用常用版式）
 
 你可以在页面中自由选择任意方式，也可以组合使用（例如“先预设，再微调”）。
+
+
+## Printful API 接入（用于测试官方模板/Mockup）
+
+### 1) 配置 API Key
+
+```bash
+export PRINTFUL_API_KEY=pfk_xxx
+```
+
+### 2) 查看产品列表
+
+```bash
+python printful_integration.py products --limit 10
+```
+
+### 3) 查看某个商品可用印刷区域/printfiles
+
+```bash
+python printful_integration.py placements --product-id 657
+```
+
+### 4) 创建 mockup 任务
+
+```bash
+python printful_integration.py create-task   --product-id 657   --variant-id 4011   --image-url https://your-cdn/design.png   --placement front
+```
+
+### 5) 轮询任务结果
+
+```bash
+python printful_integration.py task --task-key <TASK_KEY> --wait
+```
