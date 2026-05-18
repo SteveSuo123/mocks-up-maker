@@ -152,7 +152,7 @@ with gr.Blocks(title="Mug Mockup Web UI") as demo:
             pick_msg = gr.Textbox(label="坐标状态", lines=2)
 
             with gr.Accordion("参数面板（中文注释）", open=True):
-                gr.Markdown("- **cylindrical**：马克杯推荐。\n- **mesh**：复杂局部形变。\n- **perspective**：快速平面贴图。")
+                gr.Markdown("**cylindrical**：马克杯推荐； **mesh**：复杂局部形变； **perspective**：快速平面贴图。")
                 with gr.Row():
                     quad_mode = gr.Dropdown(choices=["relative", "pixels"], value="relative", label="quad模式（relative推荐）")
                     warp_mode = gr.Dropdown(choices=["cylindrical", "mesh", "perspective"], value="cylindrical", label="warp算法")
