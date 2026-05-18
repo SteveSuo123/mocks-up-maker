@@ -192,3 +192,15 @@ python printful_integration.py create-task   --product-id 657   --variant-id 401
 ```bash
 python printful_integration.py task --task-key <TASK_KEY> --wait
 ```
+
+
+## Web 界面内置 Printful 测试
+
+现在 `web_app.py` 已包含 **Printful 集成测试 Tab**，可在页面完成：
+
+1. 页面输入 API Key（或使用环境变量 `PRINTFUL_API_KEY`）
+2. 下拉选择 `product / variant / placement`
+3. 一键创建 mockup task
+4. 轮询并展示 Printful 返回的 mockup 结果
+
+启动后访问 `http://localhost:7860`，切换到 **Printful 集成测试** 标签页即可。
